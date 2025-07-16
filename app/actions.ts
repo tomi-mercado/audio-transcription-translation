@@ -1,48 +1,53 @@
-"use server"
+"use server";
 
-import { experimental_transcribe as transcribe } from "ai"
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { experimental_transcribe as transcribe } from "ai";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 interface TranscriptionResult {
-  success: boolean
-  transcript?: string
-  error?: string
+  success: boolean;
+  transcript?: string;
+  error?: string;
 }
 
 interface ProcessingResult {
-  success: boolean
+  success: boolean;
   result?: {
-    originalText: string
-    originalLanguage: "en" | "es"
-    polishedOriginal: string
-    translatedText: string
-    targetLanguage: "en" | "es"
-  }
-  error?: string
+    originalText: string;
+    originalLanguage: "en" | "es";
+    polishedOriginal: string;
+    translatedText: string;
+    targetLanguage: "en" | "es";
+  };
+  error?: string;
 }
 
-export async function transcribeAudio(audioBuffer: Uint8Array): Promise<TranscriptionResult> {
+export async function transcribeAudio(
+  audioBuffer: Uint8Array
+): Promise<TranscriptionResult> {
   try {
     const result = await transcribe({
       model: openai.transcription("whisper-1"),
       audio: audioBuffer,
-    })
+    });
 
     return {
       success: true,
       transcript: result.text,
-    }
+    };
   } catch (error) {
-    console.error("Transcription error:", error)
+    console.error("Transcription error:", error);
     return {
       success: false,
       error: "Failed to transcribe audio. Please try again.",
-    }
+    };
   }
 }
 
-export async function polishAndTranslateText(text: string, tone: string): Promise<ProcessingResult> {
+export async function polishAndTranslateText(
+  text: string,
+  tone: string
+): Promise<ProcessingResult> {
   try {
     // First, detect the language and polish the original text
     const polishResult = await generateText({
@@ -56,36 +61,42 @@ export async function polishAndTranslateText(text: string, tone: string): Promis
 
         Text: "${text}"
 
-        Respond in this exact JSON format:
+        Respond in this exact JSON format, without adding \`\`\`json or \`\`\`. The response should be a valid JSON object:
         {
           "detectedLanguage": "en" or "es",
           "polishedText": "the polished version in the same language"
         }
       `,
-    })
+    });
 
-    let polishData
+    let polishData;
     try {
-      polishData = JSON.parse(polishResult.text)
+      polishData = JSON.parse(polishResult.text);
     } catch {
-      throw new Error("Failed to parse language detection response")
+      console.error(
+        "Failed to parse language detection response",
+        polishResult.text
+      );
+      throw new Error("Failed to parse language detection response");
     }
 
-    const originalLanguage = polishData.detectedLanguage as "en" | "es"
-    const polishedOriginal = polishData.polishedText
-    const targetLanguage = originalLanguage === "en" ? "es" : "en"
+    const originalLanguage = polishData.detectedLanguage as "en" | "es";
+    const polishedOriginal = polishData.polishedText;
+    const targetLanguage = originalLanguage === "en" ? "es" : "en";
 
     // Now translate to the target language
     const translateResult = await generateText({
       model: openai("gpt-4o"),
       prompt: `
-        Translate this ${originalLanguage === "en" ? "English" : "Spanish"} text to ${targetLanguage === "en" ? "English" : "Spanish"}.
+        Translate this ${
+          originalLanguage === "en" ? "English" : "Spanish"
+        } text to ${targetLanguage === "en" ? "English" : "Spanish"}.
         Maintain the ${tone} tone and ensure the translation is natural and fluent.
         Only respond with the translated text, nothing else.
 
         Text to translate: "${polishedOriginal}"
       `,
-    })
+    });
 
     return {
       success: true,
@@ -96,12 +107,12 @@ export async function polishAndTranslateText(text: string, tone: string): Promis
         translatedText: translateResult.text.trim(),
         targetLanguage,
       },
-    }
+    };
   } catch (error) {
-    console.error("Processing error:", error)
+    console.error("Processing error:", error);
     return {
       success: false,
       error: "Failed to process text. Please try again.",
-    }
+    };
   }
 }
