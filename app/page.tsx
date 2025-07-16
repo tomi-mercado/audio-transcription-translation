@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Copy, Loader2, Mic, Pause, Play, Square } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useReducer, useRef, useState } from "react";
 import { polishAndTranslateText, transcribeAudio } from "./actions";
 
 type RecordingState = "idle" | "recording" | "paused" | "processing";
@@ -27,12 +27,61 @@ interface TranscriptionResult {
   targetLanguage: "en" | "es";
 }
 
+interface AppState {
+  recordingState: RecordingState;
+  tone: string;
+  result: TranscriptionResult | null;
+  error: string | null;
+  recordingTime: number;
+}
+
+type AppAction =
+  | { type: "START_RECORDING" }
+  | { type: "PAUSE_RECORDING" }
+  | { type: "STOP_RECORDING" }
+  | { type: "SET_TONE"; payload: string }
+  | { type: "SET_RESULT"; payload: TranscriptionResult | null }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "INCREMENT_RECORDING_TIME" }
+  | { type: "RESET_APP" };
+
+const initialState: AppState = {
+  recordingState: "idle",
+  tone: "",
+  result: null,
+  error: null,
+  recordingTime: 0,
+};
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "START_RECORDING":
+      return { ...state, recordingState: "recording", recordingTime: 0 };
+    case "PAUSE_RECORDING":
+      return { ...state, recordingState: "paused" };
+    case "STOP_RECORDING":
+      return { ...state, recordingState: "processing", recordingTime: 0 };
+    case "SET_TONE":
+      return { ...state, tone: action.payload };
+    case "SET_RESULT":
+      return { ...state, result: action.payload };
+    case "SET_ERROR":
+      return { ...state, error: action.payload };
+    case "INCREMENT_RECORDING_TIME":
+      return { ...state, recordingTime: state.recordingTime + 1 };
+    case "RESET_APP":
+      return {
+        ...initialState,
+        tone: state.tone, // Keep the tone setting
+      };
+    default:
+      return state;
+  }
+}
+
 export default function AudioTranscriptionApp() {
-  const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-  const [tone, setTone] = useState("");
-  const [result, setResult] = useState<TranscriptionResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const { recordingState, tone, result, error, recordingTime } = state;
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
     {}
   );
@@ -44,7 +93,7 @@ export default function AudioTranscriptionApp() {
 
   const startTimer = useCallback(() => {
     timerRef.current = setInterval(() => {
-      setRecordingTime((prev) => prev + 1);
+      dispatch({ type: "INCREMENT_RECORDING_TIME" });
     }, 1000);
   }, []);
 
@@ -65,8 +114,8 @@ export default function AudioTranscriptionApp() {
 
   const startRecording = async () => {
     try {
-      setError(null);
-      setResult(null);
+      dispatch({ type: "SET_ERROR", payload: null });
+      dispatch({ type: "SET_RESULT", payload: null });
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -91,11 +140,13 @@ export default function AudioTranscriptionApp() {
       };
 
       mediaRecorder.start();
-      setRecordingState("recording");
-      setRecordingTime(0);
+      dispatch({ type: "START_RECORDING" });
       startTimer();
     } catch (err) {
-      setError("Failed to access microphone. Please check permissions.");
+      dispatch({
+        type: "SET_ERROR",
+        payload: "Failed to access microphone. Please check permissions.",
+      });
       console.error("Error starting recording:", err);
     }
   };
@@ -103,7 +154,7 @@ export default function AudioTranscriptionApp() {
   const pauseRecording = () => {
     if (mediaRecorderRef.current && recordingState === "recording") {
       mediaRecorderRef.current.pause();
-      setRecordingState("paused");
+      dispatch({ type: "PAUSE_RECORDING" });
       stopTimer();
     }
   };
@@ -111,7 +162,7 @@ export default function AudioTranscriptionApp() {
   const resumeRecording = () => {
     if (mediaRecorderRef.current && recordingState === "paused") {
       mediaRecorderRef.current.resume();
-      setRecordingState("recording");
+      dispatch({ type: "START_RECORDING" });
       startTimer();
     }
   };
@@ -119,14 +170,14 @@ export default function AudioTranscriptionApp() {
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      setRecordingState("processing");
+      dispatch({ type: "STOP_RECORDING" });
       stopTimer();
     }
   };
 
   const processAudio = async (audioBlob: Blob) => {
     try {
-      setRecordingState("processing");
+      dispatch({ type: "STOP_RECORDING" });
 
       // Convert blob to buffer for transcription
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -149,26 +200,24 @@ export default function AudioTranscriptionApp() {
         throw new Error(processResult.error || "Processing failed");
       }
 
-      setResult(processResult.result!);
+      dispatch({ type: "SET_RESULT", payload: processResult.result! });
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred during processing"
-      );
+      dispatch({
+        type: "SET_ERROR",
+        payload:
+          err instanceof Error
+            ? err.message
+            : "An error occurred during processing",
+      });
       console.error("Error processing audio:", err);
     } finally {
-      setRecordingState("idle");
-      setRecordingTime(0);
+      dispatch({ type: "STOP_RECORDING" });
     }
   };
 
   const resetApp = () => {
-    setRecordingState("idle");
-    setResult(null);
-    setError(null);
-    setRecordingTime(0);
-    setTone("");
+    dispatch({ type: "RESET_APP" });
+    setCopiedStates({});
     stopTimer();
 
     if (mediaRecorderRef.current) {
@@ -190,6 +239,7 @@ export default function AudioTranscriptionApp() {
         setCopiedStates((prev) => ({ ...prev, [section]: false }));
       }, 2000);
     } catch (err) {
+      console.error("Error copying to clipboard:", err);
       toast({
         title: "Failed to copy",
         description: "Please try again",
@@ -228,7 +278,9 @@ export default function AudioTranscriptionApp() {
                 id="tone"
                 placeholder="e.g., professional, casual, formal, friendly"
                 value={tone}
-                onChange={(e) => setTone(e.target.value)}
+                onChange={(e) =>
+                  dispatch({ type: "SET_TONE", payload: e.target.value })
+                }
                 disabled={recordingState !== "idle"}
               />
             </div>
