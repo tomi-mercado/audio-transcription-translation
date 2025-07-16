@@ -18,7 +18,13 @@ import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
 import { useCallback, useReducer, useRef } from "react";
 import { polishAndTranslateText, transcribeAudio } from "./actions";
 
-type RecordingState = "idle" | "recording" | "paused" | "processing";
+type RecordingState =
+  | "idle"
+  | "recording"
+  | "paused"
+  | "processing"
+  | "success"
+  | "error";
 
 interface TranscriptionResult {
   originalText: string;
@@ -41,8 +47,8 @@ type AppAction =
   | { type: "PAUSE_RECORDING" }
   | { type: "STOP_RECORDING" }
   | { type: "SET_TONE"; payload: string }
-  | { type: "SET_RESULT"; payload: TranscriptionResult | null }
-  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_RESULT"; payload: TranscriptionResult }
+  | { type: "SET_ERROR"; payload: string }
   | { type: "INCREMENT_RECORDING_TIME" }
   | { type: "RESET_APP" };
 
@@ -91,16 +97,29 @@ function appReducer(state: AppState, action: AppAction): AppState {
       if (state.recordingState !== "processing") {
         reducerThrower(state, action);
       }
-      return { ...state, result: action.payload, recordingState: "idle" };
+      return {
+        ...state,
+        result: action.payload,
+        recordingState: "success",
+        error: null,
+      };
     case "SET_ERROR":
       if (state.recordingState !== "processing") {
         reducerThrower(state, action);
       }
-      return { ...state, error: action.payload };
+      return {
+        ...state,
+        error: action.payload,
+        recordingState: "error",
+        result: null,
+      };
     case "INCREMENT_RECORDING_TIME":
       return { ...state, recordingTime: state.recordingTime + 1 };
     case "RESET_APP":
-      if (state.recordingState !== "idle") {
+      if (
+        state.recordingState !== "success" &&
+        state.recordingState !== "error"
+      ) {
         reducerThrower(state, action);
       }
       return {
@@ -335,7 +354,7 @@ export default function AudioTranscriptionApp() {
               </div>
             )}
 
-            {(result || error) && (
+            {(recordingState === "success" || recordingState === "error") && (
               <div className="flex justify-center">
                 <Button onClick={resetApp} variant="outline">
                   Start New Recording
@@ -345,7 +364,7 @@ export default function AudioTranscriptionApp() {
           </CardContent>
         </Card>
 
-        {error && (
+        {recordingState === "error" && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6">
               <div className="text-red-800">
@@ -356,7 +375,7 @@ export default function AudioTranscriptionApp() {
           </Card>
         )}
 
-        {result && (
+        {recordingState === "success" && result && (
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
