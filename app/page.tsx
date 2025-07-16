@@ -1,5 +1,6 @@
 "use client";
 
+import { RecordingTime } from "@/components/RecordingTime";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,14 +103,6 @@ export default function AudioTranscriptionApp() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
-
-  const formatTime = useCallback((seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
   }, []);
 
   const startRecording = async () => {
@@ -338,9 +331,7 @@ export default function AudioTranscriptionApp() {
             {(recordingState === "recording" ||
               recordingState === "paused") && (
               <div className="text-center">
-                <Badge variant="secondary" className="text-lg px-4 py-2">
-                  {formatTime(recordingTime)}
-                </Badge>
+                <RecordingTime recordingTime={recordingTime} />
                 <p className="text-sm text-gray-500 mt-1">
                   {recordingState === "recording" ? "Recording..." : "Paused"}
                 </p>
