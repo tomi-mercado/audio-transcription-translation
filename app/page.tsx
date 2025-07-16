@@ -54,23 +54,55 @@ const initialState: AppState = {
   recordingTime: 0,
 };
 
+const reducerThrower = (state: AppState, action: AppAction) => {
+  throw new Error(
+    `Cannot perform ${action.type} in ${state.recordingState} state`
+  );
+};
+
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "START_RECORDING":
-      return { ...state, recordingState: "recording", recordingTime: 0 };
+      if (state.recordingState !== "idle") {
+        reducerThrower(state, action);
+      }
+      return {
+        ...state,
+        recordingState: "recording",
+        recordingTime: 0,
+        error: null,
+      };
     case "PAUSE_RECORDING":
+      if (state.recordingState !== "recording") {
+        reducerThrower(state, action);
+      }
       return { ...state, recordingState: "paused" };
     case "STOP_RECORDING":
+      if (state.recordingState !== "recording") {
+        reducerThrower(state, action);
+      }
       return { ...state, recordingState: "processing", recordingTime: 0 };
     case "SET_TONE":
+      if (state.recordingState !== "idle") {
+        reducerThrower(state, action);
+      }
       return { ...state, tone: action.payload };
     case "SET_RESULT":
+      if (state.recordingState !== "processing") {
+        reducerThrower(state, action);
+      }
       return { ...state, result: action.payload };
     case "SET_ERROR":
+      if (state.recordingState !== "processing") {
+        reducerThrower(state, action);
+      }
       return { ...state, error: action.payload };
     case "INCREMENT_RECORDING_TIME":
       return { ...state, recordingTime: state.recordingTime + 1 };
     case "RESET_APP":
+      if (state.recordingState !== "idle") {
+        reducerThrower(state, action);
+      }
       return {
         ...initialState,
         tone: state.tone, // Keep the tone setting
@@ -107,7 +139,6 @@ export default function AudioTranscriptionApp() {
 
   const startRecording = async () => {
     try {
-      dispatch({ type: "SET_ERROR", payload: null });
       dispatch({ type: "SET_RESULT", payload: null });
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
