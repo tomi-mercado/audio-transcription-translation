@@ -91,7 +91,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       if (state.recordingState !== "processing") {
         reducerThrower(state, action);
       }
-      return { ...state, result: action.payload };
+      return { ...state, result: action.payload, recordingState: "idle" };
     case "SET_ERROR":
       if (state.recordingState !== "processing") {
         reducerThrower(state, action);
@@ -139,8 +139,6 @@ export default function AudioTranscriptionApp() {
 
   const startRecording = async () => {
     try {
-      dispatch({ type: "SET_RESULT", payload: null });
-
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
 
@@ -201,8 +199,6 @@ export default function AudioTranscriptionApp() {
 
   const processAudio = async (audioBlob: Blob) => {
     try {
-      dispatch({ type: "STOP_RECORDING" });
-
       // Convert blob to buffer for transcription
       const arrayBuffer = await audioBlob.arrayBuffer();
       const audioBuffer = new Uint8Array(arrayBuffer);
@@ -234,8 +230,6 @@ export default function AudioTranscriptionApp() {
             : "An error occurred during processing",
       });
       console.error("Error processing audio:", err);
-    } finally {
-      dispatch({ type: "STOP_RECORDING" });
     }
   };
 

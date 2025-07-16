@@ -1,7 +1,6 @@
 "use server";
 
-import { experimental_transcribe as transcribe } from "ai";
-import { generateText } from "ai";
+import { experimental_transcribe as transcribe, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 interface TranscriptionResult {
