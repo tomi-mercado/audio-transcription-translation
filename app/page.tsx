@@ -1,6 +1,7 @@
 "use client";
 
 import { RecordingTime } from "@/components/RecordingTime";
+import { Transcription } from "@/components/Transcription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { Check, Copy, Loader2, Mic, Pause, Play, Square } from "lucide-react";
-import { useCallback, useReducer, useRef, useState } from "react";
+import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
+import { useCallback, useReducer, useRef } from "react";
 import { polishAndTranslateText, transcribeAudio } from "./actions";
 
 type RecordingState = "idle" | "recording" | "paused" | "processing";
@@ -115,14 +115,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export default function AudioTranscriptionApp() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { recordingState, tone, result, error, recordingTime } = state;
-  const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
-    {}
-  );
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const { toast } = useToast();
 
   const startTimer = useCallback(() => {
     timerRef.current = setInterval(() => {
@@ -235,34 +231,10 @@ export default function AudioTranscriptionApp() {
 
   const resetApp = () => {
     dispatch({ type: "RESET_APP" });
-    setCopiedStates({});
     stopTimer();
 
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-    }
-  };
-
-  const copyToClipboard = async (text: string, section: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedStates((prev) => ({ ...prev, [section]: true }));
-      toast({
-        title: "Copied!",
-        description: `${section} copied to clipboard`,
-      });
-
-      // Reset the copied state after 2 seconds
-      setTimeout(() => {
-        setCopiedStates((prev) => ({ ...prev, [section]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error("Error copying to clipboard:", err);
-      toast({
-        title: "Failed to copy",
-        description: "Please try again",
-        variant: "destructive",
-      });
     }
   };
 
@@ -395,61 +367,17 @@ export default function AudioTranscriptionApp() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-sm text-gray-600">
-                      Raw Transcription
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        copyToClipboard(
-                          result.originalText,
-                          "Raw Transcription"
-                        )
-                      }
-                      className="h-8 w-8 p-0"
-                    >
-                      {copiedStates["Raw Transcription"] ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-gray-800 bg-gray-50 p-3 rounded-md">
-                    {result.originalText}
-                  </p>
-                </div>
+                <Transcription
+                  text={result.originalText}
+                  title="Raw Transcription"
+                  bgColor="gray"
+                />
                 <Separator />
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-sm text-gray-600">
-                      Polished Version
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        copyToClipboard(
-                          result.polishedOriginal,
-                          "Polished Version"
-                        )
-                      }
-                      className="h-8 w-8 p-0"
-                    >
-                      {copiedStates["Polished Version"] ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-gray-800 bg-blue-50 p-3 rounded-md">
-                    {result.polishedOriginal}
-                  </p>
-                </div>
+                <Transcription
+                  text={result.polishedOriginal}
+                  title="Polished Version"
+                  bgColor="blue"
+                />
               </CardContent>
             </Card>
 
@@ -462,33 +390,11 @@ export default function AudioTranscriptionApp() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-sm text-gray-600">
-                      Translated & Polished
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        copyToClipboard(
-                          result.translatedText,
-                          "Translated & Polished"
-                        )
-                      }
-                      className="h-8 w-8 p-0"
-                    >
-                      {copiedStates["Translated & Polished"] ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-gray-800 bg-green-50 p-3 rounded-md">
-                    {result.translatedText}
-                  </p>
-                </div>
+                <Transcription
+                  text={result.translatedText}
+                  title="Translation"
+                  bgColor="green"
+                />
               </CardContent>
             </Card>
           </div>
