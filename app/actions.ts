@@ -51,7 +51,7 @@ export async function polishAndTranslateText(
   try {
     // First, detect the language and polish the original text
     const polishResult = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"),
       prompt: `
         Analyze this text and:
         1. Detect if it's primarily in English or Spanish
@@ -86,7 +86,7 @@ export async function polishAndTranslateText(
 
     // Now translate to the target language
     const translateResult = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4.1-nano"),
       prompt: `
         Translate this ${
           originalLanguage === "en" ? "English" : "Spanish"
