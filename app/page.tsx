@@ -1,5 +1,6 @@
 "use client";
 
+import { ErrorFeedback } from "@/components/ErrorFeedback";
 import { RecordingTime } from "@/components/RecordingTime";
 import { Result } from "@/components/Result";
 import { ResultsDrawer } from "@/components/ResultsDrawer";
@@ -298,14 +299,7 @@ export default function AudioTranscriptionApp() {
         {(state.recordingState === "error-result" ||
           state.recordingState === "error-api-key" ||
           state.recordingState === "error-microphone") && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="text-red-800">
-                <h3 className="font-semibold">Error</h3>
-                <p>{state.error}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <ErrorFeedback error={state.error} />
         )}
 
         {state.recordingState === "success" && <Result result={state.result} />}
