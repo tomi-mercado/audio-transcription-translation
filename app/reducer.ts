@@ -174,6 +174,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...initialState,
         tone: state.tone, // Keep the tone setting
+        apiKey: state.apiKey, // Keep the api key setting
       };
     default:
       // @ts-expect-error - If this ts expect error throws, it means that there is an action that is not handled
