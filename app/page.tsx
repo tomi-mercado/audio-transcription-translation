@@ -1,8 +1,8 @@
 "use client";
 
 import { RecordingTime } from "@/components/RecordingTime";
+import { ResultTitle } from "@/components/ResultTitle";
 import { Transcription } from "@/components/Transcription";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -424,13 +424,11 @@ export default function AudioTranscriptionApp() {
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Original (
-                  {state.result.originalLanguage === "en"
-                    ? "English"
-                    : "Spanish"}
-                  )<Badge variant="outline">Source</Badge>
-                </CardTitle>
+                <ResultTitle
+                  originalLanguage={state.result.originalLanguage}
+                  currentLanguage={state.result.originalLanguage}
+                  targetLanguage={state.result.targetLanguage}
+                />
               </CardHeader>
               <CardContent className="space-y-4">
                 <Transcription
@@ -449,11 +447,11 @@ export default function AudioTranscriptionApp() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Translation (
-                  {state.result.targetLanguage === "en" ? "English" : "Spanish"}
-                  )<Badge variant="secondary">Target</Badge>
-                </CardTitle>
+                <ResultTitle
+                  originalLanguage={state.result.originalLanguage}
+                  currentLanguage={state.result.targetLanguage}
+                  targetLanguage={state.result.targetLanguage}
+                />
               </CardHeader>
               <CardContent>
                 <Transcription

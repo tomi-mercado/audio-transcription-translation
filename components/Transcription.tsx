@@ -50,7 +50,7 @@ export const Transcription = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="font-medium text-sm text-gray-600">Raw Transcription</h4>
+        <h4 className="font-medium text-sm text-gray-600">{title}</h4>
         <Button
           variant="ghost"
           size="sm"
