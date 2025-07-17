@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
 import { useCallback, useReducer, useRef } from "react";
 import { polishAndTranslateText, transcribeAudio } from "./actions";
@@ -431,12 +430,6 @@ export default function AudioTranscriptionApp() {
                 />
               </CardHeader>
               <CardContent className="space-y-4">
-                <Transcription
-                  text={state.result.originalText}
-                  title="Raw Transcription"
-                  bgColor="gray"
-                />
-                <Separator />
                 <Transcription
                   text={state.result.polishedOriginal}
                   title="Polished Version"
