@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useResults } from "@/contexts/ResultsContext";
 import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
 import { useCallback, useReducer, useRef } from "react";
 import { polishAndTranslateText, transcribeAudio } from "./actions";
@@ -176,6 +177,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
 export default function AudioTranscriptionApp() {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const { saveResult } = useResults();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -278,7 +280,8 @@ export default function AudioTranscriptionApp() {
       }
 
       dispatch({ type: "SET_RESULT", payload: processResult.result! });
-      saveResultToLocalStorage(processResult.result!);
+      // Save to context (which updates localStorage and notifies consumers)
+      saveResult(processResult.result!);
     } catch (err) {
       dispatch({
         type: "SET_ERROR",
@@ -297,22 +300,6 @@ export default function AudioTranscriptionApp() {
 
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-    }
-  };
-
-  // Save result to localStorage when a new result is set
-  const saveResultToLocalStorage = (result: TranscriptionResult) => {
-    try {
-      const prev = localStorage.getItem("transcription-results");
-      const results = prev ? JSON.parse(prev) : [];
-      // Add id and timestamp if not present
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const toSave = { ...result, id, timestamp: Date.now() };
-      results.unshift(toSave);
-      localStorage.setItem("transcription-results", JSON.stringify(results));
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to save result to localStorage", e);
     }
   };
 

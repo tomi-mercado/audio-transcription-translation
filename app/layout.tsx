@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { ResultsProvider } from "@/contexts/ResultsContext";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -16,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <Toaster />
+        <ResultsProvider>
+          {children}
+          <Toaster />
+        </ResultsProvider>
       </body>
     </html>
   );

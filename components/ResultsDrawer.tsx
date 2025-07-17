@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useResults } from "@/contexts/ResultsContext";
 import { FileText, History, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface TranscriptionResult {
   id: string;
@@ -34,46 +35,8 @@ interface ResultsDrawerProps {
 }
 
 export function ResultsDrawer({ onResultSelect }: ResultsDrawerProps) {
-  const [results, setResults] = useState<TranscriptionResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    loadResults();
-  }, []);
-
-  const loadResults = () => {
-    try {
-      const savedResults = localStorage.getItem("transcription-results");
-      if (savedResults) {
-        const parsedResults = JSON.parse(savedResults) as TranscriptionResult[];
-        setResults(parsedResults.sort((a, b) => b.timestamp - a.timestamp));
-      }
-    } catch (error) {
-      console.error("Error loading results from localStorage:", error);
-    }
-  };
-
-  const deleteResult = (id: string) => {
-    try {
-      const updatedResults = results.filter((result) => result.id !== id);
-      localStorage.setItem(
-        "transcription-results",
-        JSON.stringify(updatedResults)
-      );
-      setResults(updatedResults);
-    } catch (error) {
-      console.error("Error deleting result:", error);
-    }
-  };
-
-  const clearAllResults = () => {
-    try {
-      localStorage.removeItem("transcription-results");
-      setResults([]);
-    } catch (error) {
-      console.error("Error clearing results:", error);
-    }
-  };
+  const { results, deleteResult, clearAllResults } = useResults();
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
