@@ -126,7 +126,7 @@ export default function AudioTranscriptionApp() {
 
       // Polish and translate
       const processResult = await polishAndTranslateText({
-        text: transcriptionResult.transcript!,
+        text: transcriptionResult.transcript,
         tone: state.tone || "professional",
         apiKey: state.apiKey,
       });
@@ -135,9 +135,9 @@ export default function AudioTranscriptionApp() {
         throw new Error(processResult.error || "Processing failed");
       }
 
-      dispatch({ type: "SET_RESULT", payload: processResult.result! });
+      dispatch({ type: "SET_RESULT", payload: processResult.result });
       // Save to context (which updates localStorage and notifies consumers)
-      saveResult(processResult.result!);
+      saveResult(processResult.result);
     } catch (err) {
       dispatch({
         type: "SET_ERROR_RESULT",

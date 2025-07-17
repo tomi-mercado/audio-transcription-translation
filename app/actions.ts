@@ -5,23 +5,37 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { LANGUAGES } from "@/constants";
 import { z } from "zod";
 
-interface TranscriptionResult {
-  success: boolean;
-  transcript?: string;
-  error?: string;
+interface SuccessTranscriptionResult {
+  success: true;
+  transcript: string;
 }
 
-interface ProcessingResult {
-  success: boolean;
-  result?: {
+interface ErrorTranscriptionResult {
+  success: false;
+  error: string;
+}
+
+type TranscriptionResult =
+  | SuccessTranscriptionResult
+  | ErrorTranscriptionResult;
+
+interface SuccessResult {
+  success: true;
+  result: {
     originalText: string;
     originalLanguage: "en" | "es";
     polishedOriginal: string;
     translatedText: string;
     targetLanguage: "en" | "es";
   };
-  error?: string;
 }
+
+interface ErrorResult {
+  success: false;
+  error: string;
+}
+
+type ProcessingResult = SuccessResult | ErrorResult;
 
 const getOpenAI = (apiKey?: string) => {
   return createOpenAI({
