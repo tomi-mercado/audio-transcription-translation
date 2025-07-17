@@ -1,17 +1,31 @@
 "use client";
 
+import { LANGUAGES } from "@/constants";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 
-interface TranscriptionResult {
-  id: string;
-  timestamp: number;
-  originalText: string;
-  originalLanguage: "en" | "es";
-  polishedOriginal: string;
-  translatedText: string;
-  targetLanguage: "en" | "es";
-  tone?: string;
-}
+const transcriptionResultSchema = z.object({
+  id: z.string(),
+  timestamp: z.number(),
+  originalText: z.string(),
+  originalLanguage: z.enum(
+    Object.keys(LANGUAGES) as [
+      keyof typeof LANGUAGES,
+      ...(keyof typeof LANGUAGES)[]
+    ]
+  ),
+  polishedOriginal: z.string(),
+  translatedText: z.string(),
+  targetLanguage: z.enum(
+    Object.keys(LANGUAGES) as [
+      keyof typeof LANGUAGES,
+      ...(keyof typeof LANGUAGES)[]
+    ]
+  ),
+  tone: z.string().optional(),
+});
+
+type TranscriptionResult = z.infer<typeof transcriptionResultSchema>;
 
 interface ResultsContextType {
   results: TranscriptionResult[];
@@ -24,29 +38,45 @@ interface ResultsContextType {
 
 const ResultsContext = createContext<ResultsContextType | undefined>(undefined);
 
-export function ResultsProvider({ children }: { children: React.ReactNode }) {
+export function ResultsProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const [results, setResults] = useState<TranscriptionResult[]>([]);
 
   const loadResults = () => {
+    let savedResults;
     try {
-      const savedResults = localStorage.getItem("transcription-results");
-      if (savedResults) {
-        const parsedResults = JSON.parse(savedResults) as TranscriptionResult[];
-        setResults(parsedResults.sort((a, b) => b.timestamp - a.timestamp));
-      } else {
+      const localStorageResults = localStorage.getItem("transcription-results");
+
+      if (!localStorageResults) {
         setResults([]);
+        return;
       }
+
+      savedResults = JSON.parse(localStorageResults);
     } catch (error) {
       console.error("Error loading results from localStorage:", error);
       setResults([]);
     }
+
+    if (!Array.isArray(savedResults)) {
+      setResults([]);
+      return;
+    }
+
+    const parseResults = savedResults.map((result) =>
+      transcriptionResultSchema.safeParse(result)
+    );
+    const validResults = parseResults.filter((result) => result.success);
+
+    setResults(validResults.map((result) => result.data));
   };
 
   const saveResult = (
     result: Omit<TranscriptionResult, "id" | "timestamp">
   ) => {
     try {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const id = crypto.randomUUID();
       const newResult: TranscriptionResult = {
         ...result,
         id,
