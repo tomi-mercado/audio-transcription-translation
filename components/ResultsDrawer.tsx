@@ -20,22 +20,7 @@ import { FileText, History, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Transcription } from "./Transcription";
 
-interface TranscriptionResult {
-  id: string;
-  timestamp: number;
-  originalText: string;
-  originalLanguage: "en" | "es";
-  polishedOriginal: string;
-  translatedText: string;
-  targetLanguage: "en" | "es";
-  tone?: string;
-}
-
-interface ResultsDrawerProps {
-  onResultSelect?: (result: TranscriptionResult) => void;
-}
-
-export function ResultsDrawer({ onResultSelect }: ResultsDrawerProps) {
+export function ResultsDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const { results, deleteResult, clearAllResults } = useResults();
 
@@ -141,19 +126,6 @@ export function ResultsDrawer({ onResultSelect }: ResultsDrawerProps) {
                               maxLength={100}
                             />
                           </div>
-                          {onResultSelect && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full mt-3"
-                              onClick={() => {
-                                onResultSelect(result);
-                                setIsOpen(false);
-                              }}
-                            >
-                              View Full Result
-                            </Button>
-                          )}
                         </CardContent>
                       </Card>
                     ))}
