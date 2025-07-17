@@ -34,13 +34,53 @@ interface TranscriptionResult {
   targetLanguage: "en" | "es";
 }
 
-interface AppState {
+interface BaseState {
   recordingState: RecordingState;
   tone: string;
-  result: TranscriptionResult | null;
-  error: string | null;
+}
+
+interface ProcessingAppState extends BaseState {
+  recordingState: "processing";
   recordingTime: number;
 }
+
+interface ErrorAppState extends BaseState {
+  recordingState: "error";
+  error: string;
+}
+
+interface IdleAppState extends BaseState {
+  recordingState: "idle";
+}
+
+interface RecordingAppState extends BaseState {
+  recordingState: "recording";
+  recordingTime: number;
+}
+
+interface PausedAppState
+  extends BaseState,
+    Pick<RecordingAppState, "recordingTime"> {
+  recordingState: "paused";
+}
+
+interface SuccessAppState extends BaseState {
+  recordingState: "success";
+  result: TranscriptionResult;
+}
+
+interface ErrorAppState extends BaseState {
+  recordingState: "error";
+  error: string;
+}
+
+type AppState =
+  | IdleAppState
+  | PausedAppState
+  | RecordingAppState
+  | ProcessingAppState
+  | SuccessAppState
+  | ErrorAppState;
 
 type AppAction =
   | { type: "START_RECORDING" }
@@ -55,85 +95,87 @@ type AppAction =
 const initialState: AppState = {
   recordingState: "idle",
   tone: "",
-  result: null,
-  error: null,
-  recordingTime: 0,
 };
 
-const reducerThrower = (state: AppState, action: AppAction) => {
-  throw new Error(
-    `Cannot perform ${action.type} in ${state.recordingState} state`
-  );
+const getThrowError = (state: AppState, action: AppAction) => {
+  return `Cannot perform ${action.type} in ${state.recordingState} state`;
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "START_RECORDING":
       if (state.recordingState !== "idle") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return {
         ...state,
         recordingState: "recording",
         recordingTime: 0,
-        error: null,
       };
+
     case "PAUSE_RECORDING":
       if (state.recordingState !== "recording") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return { ...state, recordingState: "paused" };
+
     case "STOP_RECORDING":
       if (state.recordingState !== "recording") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return { ...state, recordingState: "processing", recordingTime: 0 };
+
     case "SET_TONE":
       if (state.recordingState !== "idle") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return { ...state, tone: action.payload };
+
     case "SET_RESULT":
       if (state.recordingState !== "processing") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return {
         ...state,
         result: action.payload,
         recordingState: "success",
-        error: null,
       };
+
     case "SET_ERROR":
       if (state.recordingState !== "processing") {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return {
         ...state,
         error: action.payload,
         recordingState: "error",
-        result: null,
       };
+
     case "INCREMENT_RECORDING_TIME":
+      if (state.recordingState !== "recording") {
+        throw new Error(getThrowError(state, action));
+      }
       return { ...state, recordingTime: state.recordingTime + 1 };
+
     case "RESET_APP":
       if (
         state.recordingState !== "success" &&
         state.recordingState !== "error"
       ) {
-        reducerThrower(state, action);
+        throw new Error(getThrowError(state, action));
       }
       return {
         ...initialState,
         tone: state.tone, // Keep the tone setting
       };
     default:
-      return state;
+      // @ts-expect-error - If this ts expect error throws, it means that there is an action that is not handled
+      throw new Error(`Unknown action: ${action.type}`);
   }
 }
 
 export default function AudioTranscriptionApp() {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const { recordingState, tone, result, error, recordingTime } = state;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -189,7 +231,7 @@ export default function AudioTranscriptionApp() {
   };
 
   const pauseRecording = () => {
-    if (mediaRecorderRef.current && recordingState === "recording") {
+    if (mediaRecorderRef.current && state.recordingState === "recording") {
       mediaRecorderRef.current.pause();
       dispatch({ type: "PAUSE_RECORDING" });
       stopTimer();
@@ -197,7 +239,7 @@ export default function AudioTranscriptionApp() {
   };
 
   const resumeRecording = () => {
-    if (mediaRecorderRef.current && recordingState === "paused") {
+    if (mediaRecorderRef.current && state.recordingState === "paused") {
       mediaRecorderRef.current.resume();
       dispatch({ type: "START_RECORDING" });
       startTimer();
@@ -228,7 +270,7 @@ export default function AudioTranscriptionApp() {
       // Polish and translate
       const processResult = await polishAndTranslateText(
         transcriptionResult.transcript!,
-        tone || "professional"
+        state.tone || "professional"
       );
 
       if (!processResult.success) {
@@ -286,16 +328,16 @@ export default function AudioTranscriptionApp() {
               <Input
                 id="tone"
                 placeholder="e.g., professional, casual, formal, friendly"
-                value={tone}
+                value={state.tone}
                 onChange={(e) =>
                   dispatch({ type: "SET_TONE", payload: e.target.value })
                 }
-                disabled={recordingState !== "idle"}
+                disabled={state.recordingState !== "idle"}
               />
             </div>
 
             <div className="flex items-center justify-center space-x-4">
-              {recordingState === "idle" && (
+              {state.recordingState === "idle" && (
                 <Button
                   onClick={startRecording}
                   size="lg"
@@ -306,7 +348,7 @@ export default function AudioTranscriptionApp() {
                 </Button>
               )}
 
-              {recordingState === "recording" && (
+              {state.recordingState === "recording" && (
                 <>
                   <Button onClick={pauseRecording} variant="outline" size="lg">
                     <Pause className="w-4 h-4 mr-2" />
@@ -319,7 +361,7 @@ export default function AudioTranscriptionApp() {
                 </>
               )}
 
-              {recordingState === "paused" && (
+              {state.recordingState === "paused" && (
                 <>
                   <Button
                     onClick={resumeRecording}
@@ -336,7 +378,7 @@ export default function AudioTranscriptionApp() {
                 </>
               )}
 
-              {recordingState === "processing" && (
+              {state.recordingState === "processing" && (
                 <Button disabled size="lg">
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Processing...
@@ -344,17 +386,20 @@ export default function AudioTranscriptionApp() {
               )}
             </div>
 
-            {(recordingState === "recording" ||
-              recordingState === "paused") && (
+            {(state.recordingState === "recording" ||
+              state.recordingState === "paused") && (
               <div className="text-center">
-                <RecordingTime recordingTime={recordingTime} />
+                <RecordingTime recordingTime={state.recordingTime} />
                 <p className="text-sm text-gray-500 mt-1">
-                  {recordingState === "recording" ? "Recording..." : "Paused"}
+                  {state.recordingState === "recording"
+                    ? "Recording..."
+                    : "Paused"}
                 </p>
               </div>
             )}
 
-            {(recordingState === "success" || recordingState === "error") && (
+            {(state.recordingState === "success" ||
+              state.recordingState === "error") && (
               <div className="flex justify-center">
                 <Button onClick={resetApp} variant="outline">
                   Start New Recording
@@ -364,36 +409,38 @@ export default function AudioTranscriptionApp() {
           </CardContent>
         </Card>
 
-        {recordingState === "error" && (
+        {state.recordingState === "error" && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6">
               <div className="text-red-800">
                 <h3 className="font-semibold">Error</h3>
-                <p>{error}</p>
+                <p>{state.error}</p>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {recordingState === "success" && result && (
+        {state.recordingState === "success" && (
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Original (
-                  {result.originalLanguage === "en" ? "English" : "Spanish"})
-                  <Badge variant="outline">Source</Badge>
+                  {state.result.originalLanguage === "en"
+                    ? "English"
+                    : "Spanish"}
+                  )<Badge variant="outline">Source</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Transcription
-                  text={result.originalText}
+                  text={state.result.originalText}
                   title="Raw Transcription"
                   bgColor="gray"
                 />
                 <Separator />
                 <Transcription
-                  text={result.polishedOriginal}
+                  text={state.result.polishedOriginal}
                   title="Polished Version"
                   bgColor="blue"
                 />
@@ -404,13 +451,13 @@ export default function AudioTranscriptionApp() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Translation (
-                  {result.targetLanguage === "en" ? "English" : "Spanish"})
-                  <Badge variant="secondary">Target</Badge>
+                  {state.result.targetLanguage === "en" ? "English" : "Spanish"}
+                  )<Badge variant="secondary">Target</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Transcription
-                  text={result.translatedText}
+                  text={state.result.translatedText}
                   title="Translation"
                   bgColor="green"
                 />
