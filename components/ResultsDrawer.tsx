@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useResults } from "@/contexts/ResultsContext";
 import { FileText, History, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Transcription } from "./Transcription";
 
 interface TranscriptionResult {
   id: string;
@@ -44,12 +45,6 @@ export function ResultsDrawer({ onResultSelect }: ResultsDrawerProps) {
 
   const getLanguageLabel = (lang: "en" | "es") => {
     return lang === "en" ? "English" : "Spanish";
-  };
-
-  const truncateText = (text: string, maxLength: number = 100) => {
-    return text.length > maxLength
-      ? text.substring(0, maxLength) + "..."
-      : text;
   };
 
   return (
@@ -130,23 +125,21 @@ export function ResultsDrawer({ onResultSelect }: ResultsDrawerProps) {
                         </CardHeader>
                         <CardContent className="pt-0">
                           <div className="space-y-3">
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Polished Original
-                              </p>
-                              <p className="text-sm bg-blue-50 p-2 rounded border">
-                                {truncateText(result.polishedOriginal)}
-                              </p>
-                            </div>
+                            <Transcription
+                              title="Polished Original"
+                              text={result.polishedOriginal}
+                              bgColor="blue"
+                              showTruncate={true}
+                              maxLength={100}
+                            />
                             <Separator />
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Translation
-                              </p>
-                              <p className="text-sm bg-green-50 p-2 rounded border">
-                                {truncateText(result.translatedText)}
-                              </p>
-                            </div>
+                            <Transcription
+                              title="Translation"
+                              text={result.translatedText}
+                              bgColor="green"
+                              showTruncate={true}
+                              maxLength={100}
+                            />
                           </div>
                           {onResultSelect && (
                             <Button
