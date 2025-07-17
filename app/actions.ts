@@ -1,7 +1,7 @@
 "use server";
 
 import { experimental_transcribe as transcribe, generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { LANGUAGES } from "@/constants";
 import { z } from "zod";
 
@@ -23,9 +23,21 @@ interface ProcessingResult {
   error?: string;
 }
 
-export async function transcribeAudio(
-  audioBuffer: Uint8Array
-): Promise<TranscriptionResult> {
+const getOpenAI = (apiKey?: string) => {
+  return createOpenAI({
+    apiKey: apiKey || process.env.OPENAI_API_KEY,
+  });
+};
+
+export async function transcribeAudio({
+  audioBuffer,
+  apiKey,
+}: {
+  audioBuffer: Uint8Array;
+  apiKey?: string;
+}): Promise<TranscriptionResult> {
+  const openai = getOpenAI(apiKey);
+
   try {
     const result = await transcribe({
       model: openai.transcription("whisper-1"),
@@ -55,7 +67,15 @@ const polishParseResultSchema = z.object({
   polishedText: z.string(),
 });
 
-const polishment = async ({ text, tone }: { text: string; tone: string }) => {
+const polishment = async ({
+  text,
+  tone,
+  openai,
+}: {
+  text: string;
+  tone: string;
+  openai: ReturnType<typeof createOpenAI>;
+}) => {
   const polishResult = await generateText({
     model: openai("gpt-4o-mini"),
     prompt: `
@@ -98,11 +118,13 @@ const translation = async ({
   tone,
   targetLanguage,
   originalLanguage,
+  openai,
 }: {
   text: string;
   tone: string;
   targetLanguage: keyof typeof LANGUAGES;
   originalLanguage: keyof typeof LANGUAGES;
+  openai: ReturnType<typeof createOpenAI>;
 }) => {
   const translationResult = await generateText({
     model: openai("gpt-4.1-nano"),
@@ -118,15 +140,22 @@ const translation = async ({
   return translationResult.text.trim();
 };
 
-export async function polishAndTranslateText(
-  text: string,
-  tone: string
-): Promise<ProcessingResult> {
+export async function polishAndTranslateText({
+  text,
+  tone,
+  apiKey,
+}: {
+  text: string;
+  tone: string;
+  apiKey?: string;
+}): Promise<ProcessingResult> {
+  const openai = getOpenAI(apiKey);
+
   try {
     const {
       detectedLanguage: originalLanguage,
       polishedText: polishedOriginal,
-    } = await polishment({ text, tone });
+    } = await polishment({ text, tone, openai });
     const targetLanguage = originalLanguage === "en" ? "es" : "en";
 
     const translatedText = await translation({
@@ -134,6 +163,7 @@ export async function polishAndTranslateText(
       tone,
       targetLanguage,
       originalLanguage,
+      openai,
     });
 
     return {

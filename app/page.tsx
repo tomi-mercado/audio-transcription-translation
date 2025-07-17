@@ -25,7 +25,9 @@ type RecordingState =
   | "paused"
   | "processing"
   | "success"
-  | "error";
+  | "error-result"
+  | "error-api-key"
+  | "error-microphone";
 
 interface TranscriptionResult {
   originalText: string;
@@ -38,6 +40,7 @@ interface TranscriptionResult {
 interface BaseState {
   recordingState: RecordingState;
   tone: string;
+  apiKey?: string;
 }
 
 interface ProcessingAppState extends BaseState {
@@ -46,7 +49,7 @@ interface ProcessingAppState extends BaseState {
 }
 
 interface ErrorAppState extends BaseState {
-  recordingState: "error";
+  recordingState: "error-result" | "error-api-key" | "error-microphone";
   error: string;
 }
 
@@ -70,11 +73,6 @@ interface SuccessAppState extends BaseState {
   result: TranscriptionResult;
 }
 
-interface ErrorAppState extends BaseState {
-  recordingState: "error";
-  error: string;
-}
-
 type AppState =
   | IdleAppState
   | PausedAppState
@@ -88,8 +86,11 @@ type AppAction =
   | { type: "PAUSE_RECORDING" }
   | { type: "STOP_RECORDING" }
   | { type: "SET_TONE"; payload: string }
+  | { type: "SET_API_KEY"; payload: string }
   | { type: "SET_RESULT"; payload: TranscriptionResult }
-  | { type: "SET_ERROR"; payload: string }
+  | { type: "SET_ERROR_RESULT"; payload: string }
+  | { type: "SET_ERROR_MICROPHONE" }
+  | { type: "SET_ERROR_API_KEY" }
   | { type: "INCREMENT_RECORDING_TIME" }
   | { type: "RESET_APP" };
 
@@ -132,6 +133,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
       }
       return { ...state, tone: action.payload };
 
+    case "SET_API_KEY":
+      if (state.recordingState !== "idle") {
+        throw new Error(getThrowError(state, action));
+      }
+      return { ...state, apiKey: action.payload };
+
     case "SET_RESULT":
       if (state.recordingState !== "processing") {
         throw new Error(getThrowError(state, action));
@@ -142,14 +149,34 @@ function appReducer(state: AppState, action: AppAction): AppState {
         recordingState: "success",
       };
 
-    case "SET_ERROR":
+    case "SET_ERROR_RESULT":
       if (state.recordingState !== "processing") {
         throw new Error(getThrowError(state, action));
       }
       return {
         ...state,
         error: action.payload,
-        recordingState: "error",
+        recordingState: "error-result",
+      };
+
+    case "SET_ERROR_API_KEY":
+      if (state.recordingState !== "idle") {
+        throw new Error(getThrowError(state, action));
+      }
+      return {
+        ...state,
+        recordingState: "error-api-key",
+        error: "API key is required to process audio",
+      };
+
+    case "SET_ERROR_MICROPHONE":
+      if (state.recordingState !== "recording") {
+        throw new Error(getThrowError(state, action));
+      }
+      return {
+        ...state,
+        recordingState: "error-microphone",
+        error: "Failed to access microphone. Please check permissions.",
       };
 
     case "INCREMENT_RECORDING_TIME":
@@ -161,7 +188,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case "RESET_APP":
       if (
         state.recordingState !== "success" &&
-        state.recordingState !== "error"
+        state.recordingState !== "error-result"
       ) {
         throw new Error(getThrowError(state, action));
       }
@@ -197,6 +224,17 @@ export default function AudioTranscriptionApp() {
   }, []);
 
   const startRecording = async () => {
+    if (process.env.NODE_ENV === "production" && !state.apiKey) {
+      if (state.recordingState === "error-api-key") {
+        return;
+      }
+
+      dispatch({
+        type: "SET_ERROR_API_KEY",
+      });
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -224,9 +262,12 @@ export default function AudioTranscriptionApp() {
       dispatch({ type: "START_RECORDING" });
       startTimer();
     } catch (err) {
+      if (state.recordingState === "error-microphone") {
+        return;
+      }
+
       dispatch({
-        type: "SET_ERROR",
-        payload: "Failed to access microphone. Please check permissions.",
+        type: "SET_ERROR_MICROPHONE",
       });
       console.error("Error starting recording:", err);
     }
@@ -263,17 +304,21 @@ export default function AudioTranscriptionApp() {
       const audioBuffer = new Uint8Array(arrayBuffer);
 
       // Transcribe audio
-      const transcriptionResult = await transcribeAudio(audioBuffer);
+      const transcriptionResult = await transcribeAudio({
+        audioBuffer,
+        apiKey: state.apiKey,
+      });
 
       if (!transcriptionResult.success) {
         throw new Error(transcriptionResult.error || "Transcription failed");
       }
 
       // Polish and translate
-      const processResult = await polishAndTranslateText(
-        transcriptionResult.transcript!,
-        state.tone || "professional"
-      );
+      const processResult = await polishAndTranslateText({
+        text: transcriptionResult.transcript!,
+        tone: state.tone || "professional",
+        apiKey: state.apiKey,
+      });
 
       if (!processResult.success) {
         throw new Error(processResult.error || "Processing failed");
@@ -284,7 +329,7 @@ export default function AudioTranscriptionApp() {
       saveResult(processResult.result!);
     } catch (err) {
       dispatch({
-        type: "SET_ERROR",
+        type: "SET_ERROR_RESULT",
         payload:
           err instanceof Error
             ? err.message
@@ -330,6 +375,21 @@ export default function AudioTranscriptionApp() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {process.env.NODE_ENV !== "development" && (
+              <div className="space-y-2">
+                <Label htmlFor="apiKey">API Key</Label>
+                <Input
+                  id="apiKey"
+                  placeholder="Enter your API key"
+                  value={state.apiKey}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_API_KEY", payload: e.target.value })
+                  }
+                  disabled={state.recordingState !== "idle"}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="tone">Tone (optional)</Label>
               <Input
@@ -344,7 +404,9 @@ export default function AudioTranscriptionApp() {
             </div>
 
             <div className="flex items-center justify-center space-x-4">
-              {state.recordingState === "idle" && (
+              {(state.recordingState === "idle" ||
+                state.recordingState === "error-api-key" ||
+                state.recordingState === "error-microphone") && (
                 <Button
                   onClick={startRecording}
                   size="lg"
@@ -406,7 +468,7 @@ export default function AudioTranscriptionApp() {
             )}
 
             {(state.recordingState === "success" ||
-              state.recordingState === "error") && (
+              state.recordingState === "error-result") && (
               <div className="flex justify-center">
                 <Button onClick={resetApp} variant="outline">
                   Start New Recording
@@ -416,7 +478,9 @@ export default function AudioTranscriptionApp() {
           </CardContent>
         </Card>
 
-        {state.recordingState === "error" && (
+        {(state.recordingState === "error-result" ||
+          state.recordingState === "error-api-key" ||
+          state.recordingState === "error-microphone") && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6">
               <div className="text-red-800">
