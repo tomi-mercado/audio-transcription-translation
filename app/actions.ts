@@ -91,7 +91,7 @@ const polishment = async ({
   openai: ReturnType<typeof createOpenAI>;
 }) => {
   const polishResult = await generateText({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-4.1-nano"),
     prompt: `
       Analyze this text and:
       1. Detect if it's primarily in English or Spanish
