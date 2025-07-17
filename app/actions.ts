@@ -61,7 +61,9 @@ const polishment = async ({ text, tone }: { text: string; tone: string }) => {
     prompt: `
       Analyze this text and:
       1. Detect if it's primarily in English or Spanish
-      2. Polish and improve the text while maintaining the ${tone} tone
+      2. Polish and improve the text ${
+        tone ? `while maintaining the ${tone} tone` : ""
+      }
       3. Fix any grammar, spelling, or clarity issues
       4. Keep the same language as the original
 
