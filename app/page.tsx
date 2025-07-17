@@ -3,17 +3,10 @@
 import { ErrorFeedback } from "@/components/ErrorFeedback";
 import { RecordingTime } from "@/components/RecordingTime";
 import { Result } from "@/components/Result";
-import { ResultsDrawer } from "@/components/ResultsDrawer";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Wrapper } from "@/components/Wrapper";
 import { useResults } from "@/contexts/ResultsContext";
 import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
 import { useCallback, useReducer, useRef } from "react";
@@ -167,143 +160,119 @@ export default function AudioTranscriptionApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-end">
-          <ResultsDrawer />
+    <Wrapper
+      feedback={
+        <>
+          {(state.recordingState === "error-result" ||
+            state.recordingState === "error-api-key" ||
+            state.recordingState === "error-microphone") && (
+            <ErrorFeedback error={state.error} />
+          )}
+
+          {state.recordingState === "success" && (
+            <Result result={state.result} />
+          )}
+        </>
+      }
+    >
+      {process.env.NODE_ENV !== "development" && (
+        <div className="space-y-2">
+          <Label htmlFor="apiKey">API Key</Label>
+          <Input
+            id="apiKey"
+            placeholder="Enter your API key"
+            value={state.apiKey}
+            onChange={(e) =>
+              dispatch({ type: "SET_API_KEY", payload: e.target.value })
+            }
+            disabled={state.recordingState !== "idle"}
+          />
         </div>
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Audio Transcription & Translation
-          </h1>
-          <p className="text-gray-600">
-            Record, transcribe, polish, and translate between English and
-            Spanish
-          </p>
-        </div>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mic className="w-5 h-5" />
-              Recording Controls
-            </CardTitle>
-            <CardDescription>
-              Record your audio and specify the desired tone for polishing
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {process.env.NODE_ENV !== "development" && (
-              <div className="space-y-2">
-                <Label htmlFor="apiKey">API Key</Label>
-                <Input
-                  id="apiKey"
-                  placeholder="Enter your API key"
-                  value={state.apiKey}
-                  onChange={(e) =>
-                    dispatch({ type: "SET_API_KEY", payload: e.target.value })
-                  }
-                  disabled={state.recordingState !== "idle"}
-                />
-              </div>
-            )}
+      <div className="space-y-2">
+        <Label htmlFor="tone">Tone (optional)</Label>
+        <Input
+          id="tone"
+          placeholder="e.g., professional, casual, formal, friendly"
+          value={state.tone}
+          onChange={(e) =>
+            dispatch({ type: "SET_TONE", payload: e.target.value })
+          }
+          disabled={state.recordingState !== "idle"}
+        />
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tone">Tone (optional)</Label>
-              <Input
-                id="tone"
-                placeholder="e.g., professional, casual, formal, friendly"
-                value={state.tone}
-                onChange={(e) =>
-                  dispatch({ type: "SET_TONE", payload: e.target.value })
-                }
-                disabled={state.recordingState !== "idle"}
-              />
-            </div>
-
-            <div className="flex items-center justify-center space-x-4">
-              {(state.recordingState === "idle" ||
-                state.recordingState === "error-api-key" ||
-                state.recordingState === "error-microphone") && (
-                <Button
-                  onClick={startRecording}
-                  size="lg"
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  <Mic className="w-4 h-4 mr-2" />
-                  Start Recording
-                </Button>
-              )}
-
-              {state.recordingState === "recording" && (
-                <>
-                  <Button onClick={pauseRecording} variant="outline" size="lg">
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </Button>
-                  <Button onClick={stopRecording} size="lg">
-                    <Square className="w-4 h-4 mr-2" />
-                    Stop
-                  </Button>
-                </>
-              )}
-
-              {state.recordingState === "paused" && (
-                <>
-                  <Button
-                    onClick={resumeRecording}
-                    size="lg"
-                    className="bg-green-500 hover:bg-green-600"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Resume
-                  </Button>
-                  <Button onClick={stopRecording} size="lg">
-                    <Square className="w-4 h-4 mr-2" />
-                    Stop
-                  </Button>
-                </>
-              )}
-
-              {state.recordingState === "processing" && (
-                <Button disabled size="lg">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </Button>
-              )}
-            </div>
-
-            {(state.recordingState === "recording" ||
-              state.recordingState === "paused") && (
-              <div className="text-center">
-                <RecordingTime recordingTime={state.recordingTime} />
-                <p className="text-sm text-gray-500 mt-1">
-                  {state.recordingState === "recording"
-                    ? "Recording..."
-                    : "Paused"}
-                </p>
-              </div>
-            )}
-
-            {(state.recordingState === "success" ||
-              state.recordingState === "error-result") && (
-              <div className="flex justify-center">
-                <Button onClick={resetApp} variant="outline">
-                  Start New Recording
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {(state.recordingState === "error-result" ||
+      <div className="flex items-center justify-center space-x-4">
+        {(state.recordingState === "idle" ||
           state.recordingState === "error-api-key" ||
           state.recordingState === "error-microphone") && (
-          <ErrorFeedback error={state.error} />
+          <Button
+            onClick={startRecording}
+            size="lg"
+            className="bg-red-500 hover:bg-red-600"
+          >
+            <Mic className="w-4 h-4 mr-2" />
+            Start Recording
+          </Button>
         )}
 
-        {state.recordingState === "success" && <Result result={state.result} />}
+        {state.recordingState === "recording" && (
+          <>
+            <Button onClick={pauseRecording} variant="outline" size="lg">
+              <Pause className="w-4 h-4 mr-2" />
+              Pause
+            </Button>
+            <Button onClick={stopRecording} size="lg">
+              <Square className="w-4 h-4 mr-2" />
+              Stop
+            </Button>
+          </>
+        )}
+
+        {state.recordingState === "paused" && (
+          <>
+            <Button
+              onClick={resumeRecording}
+              size="lg"
+              className="bg-green-500 hover:bg-green-600"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Resume
+            </Button>
+            <Button onClick={stopRecording} size="lg">
+              <Square className="w-4 h-4 mr-2" />
+              Stop
+            </Button>
+          </>
+        )}
+
+        {state.recordingState === "processing" && (
+          <Button disabled size="lg">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Processing...
+          </Button>
+        )}
       </div>
-    </div>
+
+      {(state.recordingState === "recording" ||
+        state.recordingState === "paused") && (
+        <div className="text-center">
+          <RecordingTime recordingTime={state.recordingTime} />
+          <p className="text-sm text-gray-500 mt-1">
+            {state.recordingState === "recording" ? "Recording..." : "Paused"}
+          </p>
+        </div>
+      )}
+
+      {(state.recordingState === "success" ||
+        state.recordingState === "error-result") && (
+        <div className="flex justify-center">
+          <Button onClick={resetApp} variant="outline">
+            Start New Recording
+          </Button>
+        </div>
+      )}
+    </Wrapper>
   );
 }
