@@ -1,9 +1,8 @@
 "use client";
 
 import { RecordingTime } from "@/components/RecordingTime";
+import { Result } from "@/components/Result";
 import { ResultsDrawer } from "@/components/ResultsDrawer";
-import { ResultTitle } from "@/components/ResultTitle";
-import { Transcription } from "@/components/Transcription";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -309,43 +308,7 @@ export default function AudioTranscriptionApp() {
           </Card>
         )}
 
-        {state.recordingState === "success" && (
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <ResultTitle
-                  originalLanguage={state.result.originalLanguage}
-                  currentLanguage={state.result.originalLanguage}
-                  targetLanguage={state.result.targetLanguage}
-                />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Transcription
-                  text={state.result.polishedOriginal}
-                  title="Polished Version"
-                  bgColor="blue"
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <ResultTitle
-                  originalLanguage={state.result.originalLanguage}
-                  currentLanguage={state.result.targetLanguage}
-                  targetLanguage={state.result.targetLanguage}
-                />
-              </CardHeader>
-              <CardContent>
-                <Transcription
-                  text={state.result.translatedText}
-                  title="Translation"
-                  bgColor="green"
-                />
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {state.recordingState === "success" && <Result result={state.result} />}
       </div>
     </div>
   );

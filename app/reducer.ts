@@ -8,7 +8,7 @@ type RecordingState =
   | "error-api-key"
   | "error-microphone";
 
-interface TranscriptionResult {
+export interface TranscriptionResult {
   originalText: string;
   originalLanguage: "en" | "es";
   polishedOriginal: string;
