@@ -1,6 +1,7 @@
 "use client";
 
 import { RecordingTime } from "@/components/RecordingTime";
+import { ResultsDrawer } from "@/components/ResultsDrawer";
 import { ResultTitle } from "@/components/ResultTitle";
 import { Transcription } from "@/components/Transcription";
 import { Button } from "@/components/ui/button";
@@ -277,6 +278,7 @@ export default function AudioTranscriptionApp() {
       }
 
       dispatch({ type: "SET_RESULT", payload: processResult.result! });
+      saveResultToLocalStorage(processResult.result!);
     } catch (err) {
       dispatch({
         type: "SET_ERROR",
@@ -298,9 +300,28 @@ export default function AudioTranscriptionApp() {
     }
   };
 
+  // Save result to localStorage when a new result is set
+  const saveResultToLocalStorage = (result: TranscriptionResult) => {
+    try {
+      const prev = localStorage.getItem("transcription-results");
+      const results = prev ? JSON.parse(prev) : [];
+      // Add id and timestamp if not present
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const toSave = { ...result, id, timestamp: Date.now() };
+      results.unshift(toSave);
+      localStorage.setItem("transcription-results", JSON.stringify(results));
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to save result to localStorage", e);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex justify-end">
+          <ResultsDrawer />
+        </div>
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">
             Audio Transcription & Translation
